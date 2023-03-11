@@ -8,6 +8,10 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <asm/uaccess.h>
+#include <linux/list.h>
+#include <linux/rbtree.h>
+#include <linux/mm_types.h>  // for mm_struct and vm_area_struct
+#include <linux/sched/mm.h>
 
 #define MODULE_NAME "memory_map"
 #define DEVICE_NAME "kmaps"
@@ -15,13 +19,21 @@
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Clifton Wolfe");
 MODULE_DESCRIPTION("Memory map of the kernel");
-
-static int memory_map_open_count = 0;
+static atomic_t memory_map_open_count;
 static int major_num = 0;
+static struct mm_struct *current_mm = NULL;
 
 /* When a process reads from our device, this gets called. */
 static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
-    return 0;
+    struct rb_node *rb;
+    struct vma *vma;
+    struct vm_area_struct* vm_area;
+    struct page* page;
+    size_t nread = 0;
+
+    vm_area = mm->mmap;
+
+    return nread;
 }
 /* Called when a process tries to write to our device */
 static ssize_t memory_map_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
@@ -32,17 +44,19 @@ static ssize_t memory_map_write(struct file *flip, const char *buffer, size_t le
 /* Called when a process opens our device */
 static int memory_map_open(struct inode *inode, struct file *file) {
     /* If device is open, return busy */
-    if (memory_map_open_count) {
+    if (atomic_read(&memory_map_open_count)) {
         return -EBUSY;
     }
-    memory_map_open_count++;
+    atomic_inc(&memory_map_open_count);
+    current_mm = current->mm;
     try_module_get(THIS_MODULE);
     return 0;
 }
 /* Called when a process closes our device */
 static int memory_map_release(struct inode *inode, struct file *file) {
     /* Decrement the open counter and usage count. Without this, the module would not unload. */
-    memory_map_open_count--;
+    current_mm = NULL;
+    atomic_dec(&memory_map_open_count);
     module_put(THIS_MODULE);
     return 0;
 }
