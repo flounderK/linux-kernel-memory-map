@@ -49,16 +49,29 @@ void DumpHex(const void* data, size_t size) {
 
 void dmesg_dump_hex(const void* data, size_t size) {
     char out_buffer[128];
+    char hex_char_buf[64];
+    uint8_t byte_chr;
+	char ascii[17];
+    memset(ascii, 0, sizeof(ascii));
+    ascii[16] = '\0';
     for (int i = 0; i < size; i = i + (sizeof(void*)*2)){
         memset(out_buffer, 0, sizeof(out_buffer));
+        memset(hex_char_buf, 0, sizeof(hex_char_buf));
+        for (int c = 0; c < 16; c++) {
+            byte_chr = *(unsigned char*)((size_t)data+i+c);
+            if (byte_chr >= ' ' && byte_chr <= '~') {
+                ascii[c % 16] = byte_chr;
+            } else {
+                ascii[c % 16] = '.';
+            }
+        }
         // TODO: maybe make this less bad
-        snprintf(out_buffer, sizeof(out_buffer),
-                "\x01%016lx: "
-                "%02x %02x %02x %02x "
-                "%02x %02x %02x %02x "
-                "%02x %02x %02x %02x "
-                "%02x %02x %02x %02x",
-                ((size_t)data) + i,
+        //
+        snprintf(hex_char_buf, sizeof(hex_char_buf),
+                "%02x%02x %02x%02x "
+                "%02x%02x %02x%02x "
+                "%02x%02x %02x%02x "
+                "%02x%02x %02x%02x ",
                 *(uint8_t*)((size_t)data+i+0),
                 *(uint8_t*)((size_t)data+i+1),
                 *(uint8_t*)((size_t)data+i+2),
@@ -79,6 +92,14 @@ void dmesg_dump_hex(const void* data, size_t size) {
                 *(uint8_t*)((size_t)data+i+14),
                 *(uint8_t*)((size_t)data+i+15)
                 );
+        //
+        snprintf(out_buffer, sizeof(out_buffer),
+                KERN_INFO "%016lx: %s %s",
+                ((size_t)data) + i,
+                hex_char_buf,
+                ascii
+                );
+
         printk(out_buffer);
 
 
