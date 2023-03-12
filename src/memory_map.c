@@ -12,6 +12,8 @@
 #include <linux/rbtree.h>
 #include <linux/mm_types.h>  // for mm_struct and vm_area_struct
 #include <linux/sched/mm.h>
+#include <asm/page.h>
+#include <linux/pgtable.h>
 
 #define MODULE_NAME "memory_map"
 #define DEVICE_NAME "kmaps"
@@ -29,9 +31,11 @@ static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff
     struct vma *vma;
     struct vm_area_struct* vm_area;
     struct page* page;
+    pgd_t * pgd = NULL;
+    pmd_t * pmd = NULL;
+    pte_t * pte = NULL;
     size_t nread = 0;
-
-    vm_area = mm->mmap;
+    unsigned long addr = (unsigned long)&try_module_get;
 
     return nread;
 }
@@ -71,12 +75,14 @@ static struct file_operations file_ops = {
 
 static int __init memory_map_init(void)
 {
-    major_num = printk(KERN_INFO "Starting kernel module!\n");
+    printk(KERN_INFO "Starting kernel module!\n");
     int res = register_chrdev(0, DEVICE_NAME, &file_ops);
     if (res < 0) {
         printk(KERN_WARNING "Failed to start kernel module %d\n", res);
+        return res;
     }
-    return res;
+    major_num = res;
+    return 0;
 }
 
 static void __exit memory_map_cleanup(void)

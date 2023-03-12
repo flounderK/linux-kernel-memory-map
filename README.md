@@ -12,12 +12,19 @@ unset KBUILD_OUTPUT
 ```
 
 
+## building
 ```
-mkdir rootfs
-cd rootfs && find . -print | cpio -o -H newc > ../rootfs.cpio && gzip ../rootfs.cpio
+cd src
+export KDIR=<path-to-linux-kernel-build-dir>
+make
+cd ..
+```
 
+## start test environment
 ```
-
-```
-cp $MODULE_DIR/arch/x86/boot/bzImage .
-```
+cp $KDIR/arch/x86/boot/bzImage .
+sudo -sE
+./script/test_install.sh
+exit
+./start-qemu.sh
+``
