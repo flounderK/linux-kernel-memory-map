@@ -97,15 +97,19 @@ void dmesg_dump_hex(const void* data, size_t size) {
                 *(uint8_t*)((size_t)data+i+14),
                 *(uint8_t*)((size_t)data+i+15)
                 );
-        //
+        /*
         snprintf(out_buffer, sizeof(out_buffer),
                 KERN_INFO "%016lx: %s %s",
                 ((size_t)data) + i,
                 hex_char_buf,
                 ascii
                 );
+                */
 
-        printk(out_buffer);
+        printk(KERN_INFO "%016lx: %s %s",
+                ((size_t)data) + i,
+                hex_char_buf,
+                ascii);
     }
 }
 
