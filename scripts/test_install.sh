@@ -24,6 +24,11 @@ _EOF_
 
 chmod +x "${INSTALL_MODULE_SCRIPT_PATH}"
 
+
+if [ -e "testsrc/main" ]; then
+	cp testsrc/main rootfs/root/main
+fi
+
 # cp scripts/install_module_cmd.sh rootfs/etc/init.d/
 
 umount rootfs

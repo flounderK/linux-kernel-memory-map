@@ -14,6 +14,11 @@
 #include <linux/sched/mm.h>
 #include <asm/page.h>
 #include <linux/pgtable.h>
+#include <linux/slab.h>                 //kmalloc()
+#include <linux/ioctl.h>
+#include <linux/err.h>
+#include "memory_map.h"
+
 
 #define MODULE_NAME "memory_map"
 #define DEVICE_NAME "kmaps"
@@ -101,12 +106,7 @@ void dmesg_dump_hex(const void* data, size_t size) {
                 );
 
         printk(out_buffer);
-
-
-
-
     }
-
 }
 
 MODULE_LICENSE("GPL");
@@ -115,9 +115,41 @@ MODULE_DESCRIPTION("Memory map of the kernel");
 static atomic_t memory_map_open_count;
 static int major_num = 0;
 static struct mm_struct *current_mm = NULL;
+static size_t current_addr = 0;
 
 /* When a process reads from our device, this gets called. */
 static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
+
+    ssize_t nread = 0;
+    void* from_addr = (void*)current_addr;//*(void**)offset;
+    printk(KERN_INFO "Read offset 0x%lx\n", (size_t)from_addr);
+    void* kbuf = kmalloc(len, GFP_USER);
+    if (kbuf == NULL) {
+        printk(KERN_INFO "Failed to allocate memory for copy");
+        nread = -ENOMEM;
+        goto exit;
+    }
+    memcpy(kbuf, from_addr, len);
+
+    unsigned long failed_to_copy = copy_to_user(buffer, kbuf, len);
+    if (failed_to_copy > 0) {
+        printk(KERN_INFO "failed to copy %lu\n", failed_to_copy);
+        nread = -EFAULT;
+        goto exit;
+    }
+    nread = len;
+
+    *offset += nread;
+
+exit:
+    if (kbuf != NULL) {
+        kfree(kbuf);
+        kbuf = NULL;
+    }
+    return nread;
+}
+
+static int ioctl_debug_stuff(struct file *file, unsigned int cmd, unsigned long arg){
     struct rb_node *rb;
     struct vma *vma;
     struct vm_area_struct* vm_area;
@@ -128,6 +160,9 @@ static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff
     size_t nread = 0;
     size_t addr = (size_t)&try_module_get;
     printk(KERN_INFO "try_module_get 0x%lx\n", addr);
+    size_t base = addr - 0xc1720;
+    printk(KERN_INFO "base 0x%lx\n", base);
+    printk(KERN_INFO "current_addr 0x%lx\n", current_addr);
     size_t pgdir_mask = PGDIR_MASK;
     printk(KERN_INFO "PGDIR_MASK 0x%lx\n", pgdir_mask);
 
@@ -143,10 +178,8 @@ static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff
     printk(KERN_INFO "pgd 0x%lx\n", *(size_t*)pgd);
 
     //DumpHex(pgd, 256);
-    dmesg_dump_hex(addr, 256);
-
-
-    return nread;
+    dmesg_dump_hex(base, 256);
+    return 0;
 }
 /* Called when a process tries to write to our device */
 static ssize_t memory_map_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
@@ -154,6 +187,30 @@ static ssize_t memory_map_write(struct file *flip, const char *buffer, size_t le
     printk(KERN_ALERT "This operation is not supported.\n");
     return -EINVAL;
 }
+
+static loff_t memory_map_llseek(struct file *file, loff_t offset, int whence)
+{
+    loff_t res = 0;
+    if (whence == SEEK_SET) {
+        // current_addr = offset;
+        res = offset;
+    }
+    else if (whence == SEEK_CUR) {
+        res = current_addr + offset;
+        //res = file->f_pos + offset;
+    }
+    else {
+        res = -EINVAL;
+        goto exit;
+    }
+    //file->f_pos = res;
+    current_addr = res;
+
+exit:
+    return res;
+}
+
+
 /* Called when a process opens our device */
 static int memory_map_open(struct inode *inode, struct file *file) {
     /* If device is open, return busy */
@@ -175,12 +232,27 @@ static int memory_map_release(struct inode *inode, struct file *file) {
     return 0;
 }
 
+static long memory_map_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
+    switch(cmd) {
+        case WR_VALUE:
+            break;
+        case RD_VALUE:
+            break;
+        default:
+            printk(KERN_INFO "Default\n");
+            break;
+    }
+    return 0;
+}
+
 /* This structure points to all of the device functions */
 static struct file_operations file_ops = {
     .read = memory_map_read,
     .write = memory_map_write,
     .open = memory_map_open,
-    .release = memory_map_release
+    .release = memory_map_release,
+    .llseek = memory_map_llseek,
+    .unlocked_ioctl = memory_map_ioctl
 };
 
 static int __init memory_map_init(void)
