@@ -1,6 +1,11 @@
 #!/bin/bash
 
 mkdir -p rootfs
+
+if [ $(id -u) -ne 0 ]; then
+	echo "This script must be run as root or with mount privileges"
+fi
+
 mount rootfs.ext2 rootfs
 # get the path of the
 ROOT_MODULES_DIRPATH=$(find rootfs/lib/modules/ -mindepth 1 -maxdepth 1 -type d)
