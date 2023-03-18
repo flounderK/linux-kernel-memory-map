@@ -143,7 +143,8 @@ static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff
     }
     nread = len;
 
-    *offset += nread;
+    // *offset += nread;
+    current_addr += nread;
 
 exit:
     if (kbuf != NULL) {
@@ -231,6 +232,7 @@ static int memory_map_open(struct inode *inode, struct file *file) {
 static int memory_map_release(struct inode *inode, struct file *file) {
     /* Decrement the open counter and usage count. Without this, the module would not unload. */
     current_mm = NULL;
+    current_addr = 0;
     atomic_dec(&memory_map_open_count);
     module_put(THIS_MODULE);
     return 0;
