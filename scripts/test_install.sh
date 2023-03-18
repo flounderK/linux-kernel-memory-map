@@ -36,4 +36,17 @@ fi
 
 # cp scripts/install_module_cmd.sh rootfs/etc/init.d/
 
-umount rootfs
+echo "unmounting rootfs"
+UMOUNT_RETRY=0
+UMOUNT_MAX_RETRY=3
+while [ $UMOUNT_RETRY -ne $UMOUNT_MAX_RETRY ]; do
+	echo "umount retry $UMOUNT_RETRY"
+	umount rootfs
+	LASTERR=$?
+	echo "lasterr $LASTERR"
+	if [ $LASTERR -eq 0 ]; then
+		break
+	fi
+	sleep 3
+	UMOUNT_RETRY=$(($UMOUNT_RETRY + 1))
+done
