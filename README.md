@@ -11,20 +11,24 @@ export MODULE_DIR="$KBUILD_OUTPUT"
 unset KBUILD_OUTPUT
 ```
 
-
-## building
+## Build the linux kernel using buildroot
 ```
-cd src
-export KDIR=<path-to-linux-kernel-build-dir>
+make qemu_x86_64_defconfig
 make
-cd ..
 ```
 
-## start test environment
+
+## Building
 ```
-cp $KDIR/arch/x86/boot/bzImage .
-sudo -sE
-./script/test_install.sh
-exit
+# export KDIR=<path-to-linux-kernel-build-dir>
+export KDIR=<buildroot-path>/output/build/linux-<kernel-version>
+make
+```
+
+## Start test environment
+```
+# cp $KDIR/arch/x86/boot/bzImage .
+cp buildroot/output/images/* .
+sudo ./script/test_install.sh
 ./start-qemu.sh
 ``

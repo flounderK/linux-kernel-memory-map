@@ -1,6 +1,6 @@
 
 
-all: clean kernel_module test_code
+all: kernel_module test_code
 
 
 clean: clean_kernel_module clean_test_code
