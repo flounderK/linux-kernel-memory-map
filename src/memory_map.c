@@ -119,10 +119,10 @@ MODULE_DESCRIPTION("Memory map of the kernel");
 static atomic_t memory_map_open_count;
 static int major_num = 0;
 static struct mm_struct *current_mm = NULL;
+// TODO: it might be a good idea to make this atomic
 static size_t current_addr = 0;
 
-/* When a process reads from our device, this gets called. */
-static ssize_t memory_map_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
+static ssize_t arbitrary_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
 
     ssize_t nread = 0;
     void* from_addr = (void*)current_addr;//*(void**)offset;
@@ -187,13 +187,40 @@ static int ioctl_debug_stuff(struct file *file, unsigned int cmd, unsigned long 
     return 0;
 }
 /* Called when a process tries to write to our device */
-static ssize_t memory_map_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
-    /* This is a read-only device */
-    printk(KERN_ALERT "This operation is not supported.\n");
-    return -EINVAL;
+static ssize_t arbitrary_write(struct file *flip, const char *buffer, size_t len, loff_t *offset) {
+
+    ssize_t nwritten = 0;
+    void* to_addr = (void*)current_addr;//*(void**)offset;
+    printk(KERN_INFO "Write offset 0x%lx\n", (size_t)to_addr);
+    void* kbuf = kmalloc(len, GFP_USER);
+    if (kbuf == NULL) {
+        printk(KERN_INFO "Failed to allocate memory for copy");
+        nwritten = -ENOMEM;
+        goto exit;
+    }
+
+    unsigned long failed_to_copy = copy_from_user(kbuf, buffer, len);
+    if (failed_to_copy > 0) {
+        printk(KERN_INFO "failed to copy %lu\n", failed_to_copy);
+        nwritten = -EFAULT;
+        goto exit;
+    }
+
+    memcpy(to_addr, kbuf, len);
+    nwritten = len;
+
+    // *offset += nwritten;
+    current_addr += nwritten;
+
+exit:
+    if (kbuf != NULL) {
+        kfree(kbuf);
+        kbuf = NULL;
+    }
+    return nwritten;
 }
 
-static loff_t memory_map_llseek(struct file *file, loff_t offset, int whence)
+static loff_t arbitrary_llseek(struct file *file, loff_t offset, int whence)
 {
     loff_t res = 0;
     if (whence == SEEK_SET) {
@@ -253,11 +280,11 @@ static long memory_map_ioctl(struct file *file, unsigned int cmd, unsigned long 
 
 /* This structure points to all of the device functions */
 static struct file_operations file_ops = {
-    .read = memory_map_read,
-    .write = memory_map_write,
+    .read = arbitrary_read,
+    .write = arbitrary_write,
     .open = memory_map_open,
     .release = memory_map_release,
-    .llseek = memory_map_llseek,
+    .llseek = arbitrary_llseek,
     .unlocked_ioctl = memory_map_ioctl
 };
 
