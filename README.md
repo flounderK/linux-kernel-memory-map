@@ -1,5 +1,6 @@
 # Overview
 I want to be able to see what's in memory damnit.
+This is a kernel module that is meant to eventually write out a nice formatted output showing what is where in kernel space *without* having to hook/overwrite kmalloc and kfree. For right now though, it just lets you read and write to arbitrary virtual and physical addresses.
 
 
 ## Build the linux kernel
