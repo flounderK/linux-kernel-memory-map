@@ -15,7 +15,7 @@ $(call allow-override,LD,$(LD))
 endif
 
 CDEBUG=-g
-CFLAGS=-g
+CFLAGS=-g -I../src/
 
 BINARY=arb_read
 

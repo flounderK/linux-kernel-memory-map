@@ -17,6 +17,7 @@
 #include <linux/slab.h>                 //kmalloc()
 #include <linux/ioctl.h>
 #include <linux/err.h>
+#include <linux/io.h>
 #include "memory_map.h"
 
 
@@ -121,8 +122,9 @@ static int major_num = 0;
 static struct mm_struct *current_mm = NULL;
 // TODO: it might be a good idea to make this atomic
 static size_t current_addr = 0;
+static int32_t memory_access_mode = ACCESS_MODE_VIRT;
 
-static ssize_t arbitrary_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
+static ssize_t arbitrary_virtual_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
 
     ssize_t nread = 0;
     void* from_addr = (void*)current_addr;//*(void**)offset;
@@ -152,6 +154,67 @@ exit:
         kbuf = NULL;
     }
     return nread;
+}
+
+static ssize_t arbitrary_physical_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
+
+    ssize_t nread = 0;
+    volatile char __iomem * from_addr = NULL;
+    //void* from_addr = (void*)current_addr;//*(void**)offset;
+    printk(KERN_INFO "Read offset 0x%lx\n", (size_t)current_addr);
+    char* kbuf = kmalloc(len, GFP_USER);
+    if (kbuf == NULL) {
+        printk(KERN_INFO "Failed to allocate memory for copy");
+        nread = -ENOMEM;
+        goto exit;
+    }
+    memset(kbuf, 0, len);
+    from_addr = ioremap(current_addr, len);
+    if (from_addr == NULL) {
+        printk("ioremap failed\n");
+        goto exit;
+    }
+    for (int i = 0; i < len; i = i + sizeof(u64)) {
+        kbuf[i] = readq(&from_addr[i]);
+    }
+    //memcpy(kbuf, from_addr, len);
+
+    unsigned long failed_to_copy = copy_to_user(buffer, kbuf, len);
+    if (failed_to_copy > 0) {
+        printk(KERN_INFO "failed to copy %lu\n", failed_to_copy);
+        nread = -EFAULT;
+        goto exit;
+    }
+    nread = len;
+
+    // *offset += nread;
+    current_addr += nread;
+
+exit:
+    if (kbuf != NULL) {
+        kfree(kbuf);
+        kbuf = NULL;
+    }
+    if (from_addr != NULL) {
+        iounmap(from_addr);
+        from_addr = NULL;
+    }
+    return nread;
+}
+
+
+static ssize_t arbitrary_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
+    int access_mode = memory_access_mode;
+    if (access_mode == ACCESS_MODE_VIRT) {
+        return arbitrary_virtual_read(flip, buffer, len, offset);
+    }
+    else if (access_mode == ACCESS_MODE_PHYS) {
+        return arbitrary_physical_read(flip, buffer, len, offset);
+    }
+    else {
+        return -EBUSY;
+    }
+
 }
 
 static int ioctl_debug_stuff(struct file *file, unsigned int cmd, unsigned long arg){
@@ -225,6 +288,7 @@ static loff_t arbitrary_llseek(struct file *file, loff_t offset, int whence)
     loff_t res = 0;
     if (whence == SEEK_SET) {
         // current_addr = offset;
+        printk(KERN_INFO "setting offset to 0x%llx\n", offset);
         res = offset;
     }
     else if (whence == SEEK_CUR) {
@@ -267,9 +331,12 @@ static int memory_map_release(struct inode *inode, struct file *file) {
 
 static long memory_map_ioctl(struct file *file, unsigned int cmd, unsigned long arg) {
     switch(cmd) {
-        case WR_VALUE:
+        case MEMORY_MAP_IOCTL_ACCESS_MODE_SET:
+            printk(KERN_INFO "setting access mode to %ld\n", arg);
+            memory_access_mode = arg;
             break;
-        case RD_VALUE:
+        case MEMORY_MAP_IOCTL_ACCESS_MODE_GET:
+            return memory_access_mode;
             break;
         default:
             printk(KERN_INFO "Default\n");
