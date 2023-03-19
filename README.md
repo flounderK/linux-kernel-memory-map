@@ -1,4 +1,5 @@
-
+# Overview
+I want to be able to see what's in memory damnit.
 
 
 ## Build the linux kernel
@@ -31,4 +32,14 @@ make
 cp buildroot/output/images/* .
 sudo ./script/test_install.sh
 ./start-qemu.sh
-``
+```
+
+## Testing
+### Physical memory reading
+```
+cat /proc/iomem
+./arb_read -a <Kernel code physical address> -p -n 512| xxd
+```
+
+
+
