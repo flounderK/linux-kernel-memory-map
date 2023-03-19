@@ -30,8 +30,8 @@ _EOF_
 chmod +x "${INSTALL_MODULE_SCRIPT_PATH}"
 
 
-if [ -e "testsrc/main" ]; then
-	cp testsrc/main rootfs/root/main
+if [ -e "testsrc/arb_read" ]; then
+	cp testsrc/arb_read rootfs/root/arb_read
 fi
 
 # cp scripts/install_module_cmd.sh rootfs/etc/init.d/

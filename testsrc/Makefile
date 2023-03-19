@@ -17,7 +17,7 @@ endif
 CDEBUG=-g
 CFLAGS=-g
 
-BINARY=main
+BINARY=arb_read
 
 .PHONY: all clean tests
 
@@ -27,7 +27,7 @@ BINARY=main
 
 all: clean $(BINARY)
 
-$(BINARY): main.o
+$(BINARY): arb_read.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
