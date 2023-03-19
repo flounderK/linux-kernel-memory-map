@@ -159,22 +159,25 @@ exit:
 static ssize_t arbitrary_physical_read(struct file *flip, char *buffer, size_t len, loff_t *offset) {
 
     ssize_t nread = 0;
-    volatile char __iomem * from_addr = NULL;
+    volatile size_t __iomem * from_addr = NULL;
     //void* from_addr = (void*)current_addr;//*(void**)offset;
     printk(KERN_INFO "Read offset 0x%lx\n", (size_t)current_addr);
-    char* kbuf = kmalloc(len, GFP_USER);
+    size_t* kbuf = kmalloc(len, GFP_USER);
     if (kbuf == NULL) {
         printk(KERN_INFO "Failed to allocate memory for copy");
         nread = -ENOMEM;
         goto exit;
     }
     memset(kbuf, 0, len);
-    from_addr = ioremap(current_addr, len);
+    //from_addr = ioremap(current_addr, len);
+    from_addr = memremap(current_addr, len, MEMREMAP_WB);
     if (from_addr == NULL) {
-        printk("ioremap failed\n");
+        printk(KERN_INFO "ioremap failed\n");
         goto exit;
     }
-    for (int i = 0; i < len; i = i + sizeof(u64)) {
+    for (int i = 0; i < len/sizeof(u64); i++) {
+        //printk(KERN_INFO "reading from 0x%lx\n", &from_addr[i]);
+        //kbuf[i] = readq((void*)((size_t)from_addr + (size_t)i));
         kbuf[i] = readq(&from_addr[i]);
     }
     //memcpy(kbuf, from_addr, len);
@@ -196,7 +199,8 @@ exit:
         kbuf = NULL;
     }
     if (from_addr != NULL) {
-        iounmap(from_addr);
+        //iounmap(from_addr);
+        memunmap(from_addr);
         from_addr = NULL;
     }
     return nread;
@@ -324,6 +328,7 @@ static int memory_map_release(struct inode *inode, struct file *file) {
     /* Decrement the open counter and usage count. Without this, the module would not unload. */
     current_mm = NULL;
     current_addr = 0;
+    memory_access_mode = ACCESS_MODE_VIRT;
     atomic_dec(&memory_map_open_count);
     module_put(THIS_MODULE);
     return 0;
