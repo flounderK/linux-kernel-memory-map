@@ -13,7 +13,7 @@ int main (int argc, char *argv[]) {
     int fd = 0;
     size_t num_to_read = 256;
     if (argc < 2){
-        printf("not enough arguments\n");
+        fprintf(stderr, "not enough arguments\n");
         goto exit;
     }
 
@@ -23,7 +23,7 @@ int main (int argc, char *argv[]) {
 
     char *buf = malloc(num_to_read);
     if (buf == NULL) {
-        printf("failed to malloc\n");
+        fprintf(stderr, "failed to malloc %d\n", errno);
         goto exit;
     }
     memset(buf, 0, num_to_read);
@@ -35,19 +35,19 @@ int main (int argc, char *argv[]) {
 
     fd = open("/dev/kmaps", O_RDWR);
     if (fd < 0){
-        printf("Failed to open device %d\n", fd);
+        fprintf(stderr, "Failed to open device %d\n", errno);
         goto exit;
     }
     off_t lseek_res = lseek(fd, (off_t)addr, SEEK_SET);
     if (lseek_res == -1) {
-        printf("lseek failed %d\n", errno);
+        fprintf(stderr, "lseek failed %d\n", errno);
         goto exit;
     }
 
     ssize_t nread = read(fd, buf, num_to_read);
     if (nread < 0) {
-        printf("read failed %d\n", errno);
-        // goto exit;
+        fprintf(stderr, "read failed %d\n", errno);
+        goto exit;
     }
     //printf("nread %ld\n", nread);
 
