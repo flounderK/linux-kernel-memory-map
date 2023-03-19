@@ -7,6 +7,9 @@ clean: clean_kernel_module clean_test_code
 
 
 test: all
+
+
+test_install:
 	scripts/test_install.sh
 
 
