@@ -11,6 +11,19 @@
 #include <stdbool.h>
 #include "memory_map.h"
 
+void print_usage() {
+    printf("Usage:\n"
+           "  arb_read -a <address> [-p] [-n <length-of-read>]\n"
+           "     '-p' will switch to physical memory read mode\n"
+           "     length of read will be 256 by default\n"
+           "\n"
+          );
+    return;
+}
+
+#define READ_BUFFER_SIZE 1024
+
+
 int main (int argc, char *argv[]) {
 
     int fd = 0;
@@ -20,9 +33,12 @@ int main (int argc, char *argv[]) {
     char* read_addr_arg = NULL;
     bool do_physical_read = false;
     size_t addr = 0;
+    char buf[READ_BUFFER_SIZE];
+    memset(buf, 0, sizeof(buf));
 
     if (argc < 2){
         fprintf(stderr, "not enough arguments\n");
+        print_usage();
         goto exit;
     }
 
@@ -61,12 +77,14 @@ int main (int argc, char *argv[]) {
     }
     */
 
+    /*
     char *buf = malloc(num_to_read);
     if (buf == NULL) {
         fprintf(stderr, "failed to malloc %d\n", errno);
         goto exit;
     }
     memset(buf, 0, num_to_read);
+    */
 
     //size_t addr = (size_t)atoll(argv[1]);
     //char* read_addr_arg = argv[1];
@@ -93,14 +111,19 @@ int main (int argc, char *argv[]) {
         goto exit;
     }
 
-    ssize_t nread = read(fd, buf, num_to_read);
-    if (nread < 0) {
-        fprintf(stderr, "read failed %d\n", errno);
-        goto exit;
+    ssize_t nread = 0;
+    ssize_t total_read = 0;
+    while (total_read < num_to_read) {
+        nread = read(fd, buf, sizeof(buf));
+        if (nread < 0) {
+            fprintf(stderr, "read failed %d\n", errno);
+            goto exit;
+        }
+        write(1, buf, nread);
+        total_read += nread;
     }
     //printf("nread %ld\n", nread);
 
-    write(1, buf, nread);
 
 exit:
     if (fd > 0) {
