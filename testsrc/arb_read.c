@@ -113,8 +113,12 @@ int main (int argc, char *argv[]) {
 
     ssize_t nread = 0;
     ssize_t total_read = 0;
+    ssize_t read_size = sizeof(buf);
     while (total_read < num_to_read) {
-        nread = read(fd, buf, sizeof(buf));
+        if (num_to_read - total_read < sizeof(buf)) {
+            read_size = num_to_read - total_read;
+        }
+        nread = read(fd, buf, read_size);
         if (nread < 0) {
             fprintf(stderr, "read failed %d\n", errno);
             goto exit;

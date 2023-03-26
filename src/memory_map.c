@@ -18,8 +18,11 @@
 #include <linux/ioctl.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/ioport.h>  // for iomem_resource and resource functions
 #include "memory_map.h"
 
+// NOTE: `/proc/iomem`'s code can be found mostly in `kernel/resource.c`
+// walk_mem_res and walk_iomem_res_desc are the more important functions
 
 #define MODULE_NAME "memory_map"
 #define DEVICE_NAME "kmaps"
@@ -180,6 +183,13 @@ static ssize_t arbitrary_physical_read(struct file *flip, char *buffer, size_t l
         //kbuf[i] = readq((void*)((size_t)from_addr + (size_t)i));
         kbuf[i] = readq(&from_addr[i]);
     }
+    size_t qword_aligned_len = ((len/sizeof(u64))*sizeof(u64));
+    // if the len isn't qword aligned, copy the last few bytes
+    for (size_t i = qword_aligned_len+sizeof(u64); i < len; i++) {
+        *(u8*)((size_t)kbuf + i) = readb((void*)((size_t)from_addr + i));
+    }
+
+
     //memcpy(kbuf, from_addr, len);
 
     unsigned long failed_to_copy = copy_to_user(buffer, kbuf, len);
