@@ -19,6 +19,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/ioport.h>  // for iomem_resource and resource functions
+#include <linux/device.h>  // for class_create
 #include "memory_map.h"
 
 // NOTE: `/proc/iomem`'s code can be found mostly in `kernel/resource.c`
@@ -122,6 +123,8 @@ MODULE_AUTHOR("Clifton Wolfe");
 MODULE_DESCRIPTION("Memory map of the kernel");
 static atomic_t memory_map_open_count;
 static int major_num = 0;
+static struct class* pClass = NULL;
+static dev_t dev_no;
 static struct mm_struct *current_mm = NULL;
 // TODO: it might be a good idea to make this atomic
 static size_t current_addr = 0;
@@ -372,8 +375,8 @@ static struct file_operations file_ops = {
 
 static int __init memory_map_init(void)
 {
+    struct device* pDev = NULL;
     printk(KERN_INFO "Starting kernel module!\n");
-    // TODO: real major num here
     int res = register_chrdev(0, DEVICE_NAME, &file_ops);
     if (res < 0) {
         printk(KERN_WARNING "Failed to start kernel module %d\n", res);
@@ -382,12 +385,30 @@ static int __init memory_map_init(void)
     printk(KERN_INFO "Major number %d\n", res);
 
     major_num = res;
+
+    dev_no = MKDEV(major_num, 0);
+
+    pClass = class_create(THIS_MODULE, MODULE_NAME);
+    if (IS_ERR(pClass)) {
+        printk(KERN_WARNING "can't create class\n");
+        unregister_chrdev_region(dev_no, 1);
+        return -1;
+    }
+    pDev = device_create(pClass, NULL, dev_no, NULL, DEVICE_NAME);
+    if (IS_ERR(pDev)) {
+        printk(KERN_WARNING "can't create device /dev/" DEVICE_NAME "\n");
+        class_destroy(pClass);
+        unregister_chrdev_region(dev_no, 1);
+        return -1;
+    }
     return 0;
 }
 
 static void __exit memory_map_cleanup(void)
 {
     printk(KERN_INFO "Cleaning up module.\n");
+    device_destroy(pClass, dev_no); // remote /dev node
+    class_destroy(pClass); // delete class from /sys/class
     unregister_chrdev(major_num, DEVICE_NAME);
 }
 

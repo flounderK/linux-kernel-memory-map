@@ -24,7 +24,8 @@ cat <<-_EOF_ > "${INSTALL_MODULE_SCRIPT_PATH}"
     #!/bin/sh
 	# install to rootfs/etc/init.d/
 	/sbin/modprobe memory_map.ko
-	mknod /dev/kmaps c 251 0
+	# only uncomment if device cannot be created automatically
+	# mknod /dev/kmaps c 251 0
 _EOF_
 
 chmod +x "${INSTALL_MODULE_SCRIPT_PATH}"
