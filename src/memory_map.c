@@ -401,6 +401,8 @@ static int __init memory_map_init(void)
         unregister_chrdev_region(dev_no, 1);
         return -1;
     }
+
+    printk(KERN_INFO MODULE_NAME " loaded\n");
     return 0;
 }
 

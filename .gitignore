@@ -7,3 +7,4 @@
 *.order
 *.mod
 *.mod.c
+testsrc/arb_read
